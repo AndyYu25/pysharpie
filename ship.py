@@ -19,6 +19,10 @@ from .utils import POUND2TON, YEAR_MAX, rmax, rmin, rpow, rsqrt, year_adj
 from .weights import MiscWgts
 
 
+#: .ship file version written/read by this port (mirrors SHIP_FILE_VERSION).
+SHIP_FILE_VERSION: int = 1
+
+
 @dataclass
 class Ship:
     name: str = ""
@@ -617,3 +621,53 @@ class Ship:
         return self.engine.bunker_max(
             self.hull.d(), self.hull.lwl().imp(), self.hull.leff(), self.hull.cs(), self.hull.ws()
         )
+
+    # -- loading .ship files ---------------------------------------------------
+    @classmethod
+    def from_dict(cls, data: dict) -> "Ship":
+        """Build a Ship from a parsed .ship body object."""
+        ship = cls(
+            name=str(data.get("name", "")),
+            country=str(data.get("country", "")),
+            kind=str(data.get("kind", "")),
+            year=int(data.get("year", YEAR_MAX)),
+            trim=int(data.get("trim", 50)),
+            hull=Hull.from_dict(data.get("hull") or {}),
+            armor=Armor.from_dict(data.get("armor") or {}),
+            engine=Engine.from_dict(data.get("engine") or {}),
+            batteries=[Battery.from_dict(b) for b in data.get("batteries", []) or []],
+            torps=[Torpedoes.from_dict(t) for t in data.get("torps", []) or []],
+            mines=Mines.from_dict(data.get("mines") or {}),
+            asw=[ASW.from_dict(a) for a in data.get("asw", []) or []],
+            wgts=MiscWgts.from_dict(data.get("wgts") or {}),
+            notes=list(data.get("notes", []) or []),
+        )
+        # Set derived values (mirrors Ship::load): hull boxiness from shafts.
+        ship.engine.set_shafts(ship.engine.shafts, ship.hull)
+        return ship
+
+    @classmethod
+    def loads(cls, text: str) -> "Ship":
+        """Parse the full text of a .ship file (version line + body)."""
+        import json as _json
+
+        lines = text.splitlines()
+        if not lines:
+            raise ValueError("empty ship file")
+        try:
+            version = _json.loads(lines[0]).get("version")
+        except ValueError:
+            raise ValueError("bad ship file version line") from None
+        if version != SHIP_FILE_VERSION:
+            raise ValueError(f"cannot open ship files of version {version}")
+        try:
+            body = _json.loads(lines[1])
+        except (IndexError, ValueError):
+            raise ValueError("bad ship file body") from None
+        return cls.from_dict(body)
+
+    @classmethod
+    def load(cls, path) -> "Ship":
+        """Load a Ship from a .ship file path."""
+        with open(path, "r", encoding="utf-8") as f:
+            return cls.loads(f.read())

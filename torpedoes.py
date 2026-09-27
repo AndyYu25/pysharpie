@@ -82,6 +82,12 @@ class TorpedoMountType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "TorpedoMountType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def wgt_factor(self) -> float:
         if self in (TorpedoMountType.FIXED_TUBES, TorpedoMountType.DECK_RELOADS, TorpedoMountType.SUBMERGED_RELOADS):
             return 0.25
@@ -149,3 +155,18 @@ class Torpedoes:
 
     def deck_space(self, b: float) -> float:
         return self.kind.deck_space(b, self.num, self.len.imp(), self.diam.imp(), self.mounts)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Torpedoes":
+        """Parse a .ship torpedo object."""
+        from .units import Units as _Units
+
+        return cls(
+            units=_Units.from_name(data.get("units", "")),
+            year=int(data.get("year", 0)),
+            mounts=int(data.get("mounts", 0)),
+            kind=TorpedoMountType.from_name(data.get("kind", "FixedTubes")),
+            num=int(data.get("num", 0)),
+            diam=Measurement.from_dict(data.get("diam") or {"v": 0.0}, UnitType.LENGTH_SMALL),
+            len=Measurement.from_dict(data.get("len") or {"v": 0.0}, UnitType.LENGTH_LONG),
+        )

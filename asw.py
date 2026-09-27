@@ -56,6 +56,12 @@ class ASWType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "ASWType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def mount_wgt_factor(self) -> float:
         return {
             ASWType.STERN_RACKS: 0.25,
@@ -82,3 +88,17 @@ class ASW:
 
     def wgt_mounts(self) -> float:
         return self.wgt_weaps() * self.kind.mount_wgt_factor()
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ASW":
+        """Parse a .ship ASW object."""
+        from .units import Units as _Units
+
+        return cls(
+            units=_Units.from_name(data.get("units", "")),
+            year=int(data.get("year", 0)),
+            num=int(data.get("num", 0)),
+            reload=int(data.get("reload", 0)),
+            wgt=Measurement.from_dict(data.get("wgt") or {"v": 0.0}, UnitType.WEIGHT),
+            kind=ASWType.from_name(data.get("kind", "SternRacks")),
+        )

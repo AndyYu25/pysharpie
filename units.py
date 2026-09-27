@@ -24,6 +24,11 @@ class Units(Enum):
     def to_int(self) -> int:
         return self.value
 
+    @classmethod
+    def from_name(cls, name: str) -> "Units":
+        """Parse serde variant name from .ship files ("Imperial"/"Metric")."""
+        return cls.METRIC if str(name).strip() == "Metric" else cls.IMPERIAL
+
 
 class UnitType(Enum):
     LENGTH_SMALL = "LengthSmall"
@@ -107,6 +112,15 @@ class Measurement:
 
     def set_units(self, u: Units) -> None:
         self.units = u
+
+    @classmethod
+    def from_dict(cls, data: dict, unit_type: UnitType) -> "Measurement":
+        """Parse a .ship measure `{"v": ..., "units": ..., "factor": ...}`.
+
+        `v` is in the stated units for the given unit type; the stored
+        factor is ignored and recomputed (mirrors Measurement::new).
+        """
+        return cls(float(data.get("v", 0.0)), unit_type, Units.from_name(data.get("units", "")))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Measurement):

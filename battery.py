@@ -85,6 +85,12 @@ class GunType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "GunType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def armor_face_wgt(self, armor_back: float) -> float:
         wgt = {
             GunType.MUZZLE_LOADING: 1.0,
@@ -196,6 +202,12 @@ class MountType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "MountType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def gunhouse_hgt_factor(self) -> float:
         return 2.0 if self is MountType.COLES_TURRET else 1.0
 
@@ -277,7 +289,7 @@ class MountType(Enum):
 
 
 class GunDistributionType(Enum):
-    NONE = "None_"
+    NONE = "None"
     CENTERLINE_EVEN = "CenterlineEven"
     CENTERLINE_ENDS_FD = "CenterlineEndsFD"
     CENTERLINE_ENDS_AD = "CenterlineEndsAD"
@@ -370,6 +382,12 @@ class GunDistributionType(Enum):
             return cls.from_index(int(str(index).strip()))
         except (ValueError, AttributeError):
             return cls.default()
+
+    @classmethod
+    def from_name(cls, name: str) -> "GunDistributionType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
 
     def super_aft(self) -> bool:
         return self in (
@@ -603,6 +621,12 @@ class GunLayoutType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "GunLayoutType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def guns_per(self) -> int:
         return {
             GunLayoutType.SINGLE: 1,
@@ -695,6 +719,19 @@ class SubBattery:
 
     def free(self, hull) -> float:
         return self.distribution.free(self.num_mounts(), hull) * float(self.num_mounts())
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SubBattery":
+        """Parse a .ship battery group object."""
+        return cls(
+            layout=GunLayoutType.from_name(data.get("layout", "Single")),
+            distribution=GunDistributionType.from_name(data.get("distribution", "None")),
+            above=int(data.get("above", 0)),
+            on=int(data.get("on", 0)),
+            below=int(data.get("below", 0)),
+            two_mounts_up=bool(data.get("two_mounts_up", False)),
+            lower_deck=bool(data.get("lower_deck", False)),
+        )
 
 
 @dataclass
@@ -851,4 +888,30 @@ class Battery:
     def mag_wgt(self) -> float:
         return float(self.num * self.shells) * self.shell_wgt_value().imp() / POUND2TON * (
             1.0 + self.CORDITE_FACTOR
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Battery":
+        """Parse a .ship battery object."""
+        from .units import Units as _Units
+
+        ms = UnitType.LENGTH_SMALL
+        shell_wgt = data.get("shell_wgt")
+        return cls(
+            units=_Units.from_name(data.get("units", "")),
+            num=int(data.get("num", 0)),
+            diam=Measurement.from_dict(data.get("diam") or {"v": 0.0}, ms),
+            len=float(data.get("len", 45.0)),
+            year=int(data.get("year", 0)),
+            shells=int(data.get("shells", 0)),
+            shell_wgt=(
+                Measurement.from_dict(shell_wgt, UnitType.WEIGHT) if shell_wgt else None
+            ),
+            kind=GunType.from_name(data.get("kind", "BreechLoading")),
+            mount_num=int(data.get("mount_num", 0)),
+            mount_kind=MountType.from_name(data.get("mount_kind", "Deck")),
+            armor_face=Measurement.from_dict(data.get("armor_face") or {"v": 0.0}, ms),
+            armor_back=Measurement.from_dict(data.get("armor_back") or {"v": 0.0}, ms),
+            armor_barb=Measurement.from_dict(data.get("armor_barb") or {"v": 0.0}, ms),
+            groups=[SubBattery.from_dict(g) for g in data.get("groups", []) or []],
         )

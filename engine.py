@@ -22,6 +22,23 @@ class FuelType(IntFlag):
     def is_steam(self) -> bool:
         return bool(self & (FuelType.COAL | FuelType.OIL))
 
+    @classmethod
+    def from_name(cls, text: str) -> "FuelType":
+        """Parse bitflags serde string from .ship files ("Coal | Oil")."""
+        from .utils import flags_from_str
+
+        return flags_from_str(
+            cls,
+            text,
+            {
+                "Coal": cls.COAL,
+                "Oil": cls.OIL,
+                "Diesel": cls.DIESEL,
+                "Gasoline": cls.GASOLINE,
+                "Battery": cls.BATTERY,
+            },
+        )
+
     def __str__(self) -> str:
         s = self
         if s == FuelType.COAL:
@@ -58,6 +75,15 @@ class BoilerType(IntFlag):
     @classmethod
     def default(cls) -> "BoilerType":
         return cls.TURBINE
+
+    @classmethod
+    def from_name(cls, text: str) -> "BoilerType":
+        """Parse bitflags serde string from .ship files ("Simple | Turbine")."""
+        from .utils import flags_from_str
+
+        return flags_from_str(
+            cls, text, {"Simple": cls.SIMPLE, "Complex": cls.COMPLEX, "Turbine": cls.TURBINE}
+        )
 
     def __str__(self) -> str:
         s = self
@@ -152,6 +178,22 @@ class DriveType(IntFlag):
     @classmethod
     def default(cls) -> "DriveType":
         return cls.GEARED
+
+    @classmethod
+    def from_name(cls, text: str) -> "DriveType":
+        """Parse bitflags serde string from .ship files ("Geared")."""
+        from .utils import flags_from_str
+
+        return flags_from_str(
+            cls,
+            text,
+            {
+                "Direct": cls.DIRECT,
+                "Geared": cls.GEARED,
+                "Electric": cls.ELECTRIC,
+                "Hydraulic": cls.HYDRAULIC,
+            },
+        )
 
     def __str__(self) -> str:
         s = self
@@ -273,3 +315,19 @@ class Engine:
         if early == 0.0:
             return 0.0
         return (self.hp_max(d, lwl, leff, cs, ws) / (factor / self.num_engines() * (1.1 - self.pct_coal / 10.0))) / early
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Engine":
+        """Parse a .ship engine object."""
+        return cls(
+            year=int(data.get("year", 0)),
+            fuel=FuelType.from_name(data.get("fuel", "")),
+            boiler=BoilerType.from_name(data.get("boiler", "")),
+            drive=DriveType.from_name(data.get("drive", "")),
+            factor=int(data.get("factor", 0)),
+            vmax=float(data.get("vmax", 0.0)),
+            vcruise=float(data.get("vcruise", 0.0)),
+            range=int(data.get("range", 0)),
+            shafts=int(data.get("shafts", 0)),
+            pct_coal=float(data.get("pct_coal", 0.0)),
+        )

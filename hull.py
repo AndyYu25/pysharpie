@@ -33,6 +33,13 @@ class Displacement:
     def __repr__(self) -> str:
         return f"Displacement.{self.kind}({self.value!r})"
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Displacement":
+        """Parse .ship `{"Cb": x}` or `{"D": x}`."""
+        if "Cb" in data:
+            return cls.cb(float(data["Cb"]))
+        return cls.d(float(data.get("D", 0.0)))
+
 
 class Length:
     """Hull length: Lwl or Loa."""
@@ -52,6 +59,14 @@ class Length:
 
     def __repr__(self) -> str:
         return f"Length.{self.kind}({self.value!r})"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Length":
+        """Parse .ship `{"Lwl": {...}}` or `{"Loa": {...}}`."""
+        ml = UnitType.LENGTH_LONG
+        if "Lwl" in data:
+            return cls.lwl(Measurement.from_dict(data["Lwl"] or {"v": 0.0}, ml))
+        return cls.loa(Measurement.from_dict(data.get("Loa") or {"v": 0.0}, ml))
 
 
 _STERN_LABELS = {
@@ -114,6 +129,13 @@ class SternType(Enum):
         if 0 <= i < len(all_v):
             return all_v[i]
         return cls.default()
+
+    @classmethod
+    def from_name(cls, name: str) -> "SternType":
+        """Parse serde variant name from .ship files ("TransomSm", ...)."""
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
 
     def wp_calc(self) -> tuple[float, float]:
         if self is SternType.TRANSM_SM:
@@ -225,6 +247,25 @@ class BowType:
         except (ValueError, AttributeError):
             return cls.default()
         return cls.from_index(i)
+
+    @classmethod
+    def from_dict(cls, data) -> "BowType":
+        """Parse .ship bow_type: plain name, or serde `{"Ram": {...}}`."""
+        ml = UnitType.LENGTH_LONG
+        if isinstance(data, dict):
+            for kind in ("Ram", "BulbForward"):
+                if kind in data:
+                    m = Measurement.from_dict(data[kind] or {"v": 0.0}, ml)
+                    return cls(kind, m)
+            return cls.default()
+        name = str(data).strip()
+        if name in ("Ram", "BulbForward"):
+            return cls(name, Measurement(0.0, ml, Units.IMPERIAL))
+        if name == "BulbStraight":
+            return cls.bulb_straight()
+        if name == "Normal":
+            return cls.normal()
+        return cls.default()
 
     def ram_len(self) -> Measurement:
         if self.kind in ("Ram", "BulbForward"):
@@ -400,3 +441,27 @@ class Hull:
         if self.bb.imp() == 0.0:
             return 0.0
         return self.lwl().imp() / self.bb.imp()
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Hull":
+        """Parse a .ship hull object (freeboard fields are inlined)."""
+        from .units import Units as _Units
+
+        ml = UnitType.LENGTH_LONG
+
+        def get(key: str) -> Measurement:
+            return Measurement.from_dict(data.get(key) or {"v": 0.0}, ml)
+
+        return cls(
+            units=_Units.from_name(data.get("units", "")),
+            disp=Displacement.from_dict(data.get("disp") or {"Cb": 0.0}),
+            len=Length.from_dict(data.get("len") or {"Lwl": {"v": 0.0}}),
+            b=get("b"),
+            bb=get("bb"),
+            t=get("t"),
+            bow_type=BowType.from_dict(data.get("bow_type", "Normal")),
+            stern_type=SternType.from_name(data.get("stern_type", "Cruiser")),
+            stern_overhang=get("stern_overhang"),
+            freeboard=Freeboard.from_dict(data),
+            bow_angle=float(data.get("bow_angle", 0.0)),
+        )

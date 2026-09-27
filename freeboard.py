@@ -63,3 +63,25 @@ class Freeboard:
         if denom == 0.0:
             return 0.0
         return (self.fd() * self.fd_len + self.ad() * self.ad_len()) / denom
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Freeboard":
+        """Parse flat .ship hull fields (freeboard is inlined in the file)."""
+        ml = UnitType.LENGTH_LONG
+
+        def get(key: str) -> Measurement:
+            return Measurement.from_dict(data.get(key) or {"v": 0.0}, ml)
+
+        return cls(
+            fc_len=float(data.get("fc_len", 0.0)),
+            fc_fwd=get("fc_fwd"),
+            fc_aft=get("fc_aft"),
+            fd_len=float(data.get("fd_len", 0.0)),
+            fd_fwd=get("fd_fwd"),
+            fd_aft=get("fd_aft"),
+            ad_fwd=get("ad_fwd"),
+            ad_aft=get("ad_aft"),
+            qd_len=float(data.get("qd_len", 0.0)),
+            qd_fwd=get("qd_fwd"),
+            qd_aft=get("qd_aft"),
+        )

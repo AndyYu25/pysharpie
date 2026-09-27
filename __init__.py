@@ -1,6 +1,6 @@
-"""Python port of the Rust `calc` module — numeric core only.
+"""Python port of the Rust `calc` module — numeric core + .ship loading.
 
-Mirrors calc/mod.rs re-exports (minus report/IO/SVG which are out of scope):
+Mirrors calc/mod.rs re-exports (report/SVG/.sship convert out of scope):
 YEAR_MIN/YEAR_MAX, units, weights, freeboard, hull, engine, armor,
 battery, torpedoes, mines, asw, ship, utils.
 """
@@ -18,10 +18,25 @@ from .engine import BoilerType, DriveType, Engine, FuelType
 from .freeboard import Freeboard
 from .hull import BowType, Displacement, Hull, Length, SternType
 from .mines import Mines, MineType
-from .ship import Ship
+from .ship import SHIP_FILE_VERSION, Ship
 from .torpedoes import TorpedoMountType, Torpedoes
 from .units import Measurement, Units, UnitType
-from .utils import POUND2TON, YEAR_MAX, YEAR_MIN, num, pct, plural, rmax, rmin, rpow, rsqrt, to_place, year_adj
+from .utils import (
+    POUND2TON,
+    YEAR_MAX,
+    YEAR_MIN,
+    enum_from_name,
+    flags_from_str,
+    num,
+    pct,
+    plural,
+    rmax,
+    rmin,
+    rpow,
+    rsqrt,
+    to_place,
+    year_adj,
+)
 from .weights import MiscWgts
 
 __all__ = [
@@ -60,8 +75,11 @@ __all__ = [
     "UnitType",
     "MiscWgts",
     "POUND2TON",
+    "SHIP_FILE_VERSION",
     "YEAR_MAX",
     "YEAR_MIN",
+    "enum_from_name",
+    "flags_from_str",
     "num",
     "pct",
     "plural",

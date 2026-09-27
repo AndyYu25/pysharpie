@@ -56,6 +56,12 @@ class MineType(Enum):
         except (ValueError, AttributeError):
             return cls.default()
 
+    @classmethod
+    def from_name(cls, name: str) -> "MineType":
+        from .utils import enum_from_name
+
+        return enum_from_name(cls, name, cls.default())
+
     def wgt_factor(self) -> float:
         return 0.25 if self is MineType.STERN_RAILS else 1.0
 
@@ -77,3 +83,17 @@ class Mines:
 
     def wgt_mounts(self) -> float:
         return self.wgt_weaps() * self.kind.wgt_factor()
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Mines":
+        """Parse a .ship mines object."""
+        from .units import Units as _Units
+
+        return cls(
+            units=_Units.from_name(data.get("units", "")),
+            year=int(data.get("year", 0)),
+            num=int(data.get("num", 0)),
+            reload=int(data.get("reload", 0)),
+            wgt=Measurement.from_dict(data.get("wgt") or {"v": 0.0}, UnitType.WEIGHT),
+            kind=MineType.from_name(data.get("kind", "SternRails")),
+        )

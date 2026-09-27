@@ -92,3 +92,31 @@ def rmax(a: float, b: float) -> float:
     if b != b:
         return a
     return a if a >= b else b
+
+
+def enum_from_name(enum_cls, name: str, default=None):
+    """Look up an Enum member by its serialized value, falling back to default.
+
+    Serde writes plain enums by variant name, which matches each member's
+    value in this port (e.g. "TransomSm", "Triple", "SternRails").
+    """
+    try:
+        return enum_cls(str(name).strip())
+    except (ValueError, AttributeError):
+        if default is not None:
+            return default
+        return list(enum_cls)[0]
+
+
+def flags_from_str(flags_cls, text: str, names: dict, default=None):
+    """Parse a bitflags serde string like "Coal | Oil" into flags.
+
+    `names` maps serde flag names to members. Empty/unknown text yields
+    the empty (or given default) flags.
+    """
+    result = flags_cls(0)
+    for part in str(text or "").split("|"):
+        part = part.strip()
+        if part in names:
+            result |= names[part]
+    return result if result or default is None else default
